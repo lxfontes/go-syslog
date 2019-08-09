@@ -73,7 +73,7 @@ action set_version {
 }
 
 action set_timestamp {
-	if t, e := time.Parse(RFC3339MICRO, string(m.text())); e != nil {
+	if t, e := time.Parse(m.timeFormat, string(m.text())); e != nil {
         m.err = fmt.Errorf("%s [col %d]", e, m.p)
 		fhold;
     	fgoto fail;
@@ -294,7 +294,7 @@ msg = (bom? utf8octets) >mark >markmsg %set_msg $err(err_msg);
 
 fail := (any - [\n\r])* @err{ fgoto main; };
 
-main := header sp structureddata (sp msg)? $err(err_parse);
+main := header (sp structureddata)? (sp msg)? $err(err_parse);
 
 }%%
 
@@ -311,11 +311,14 @@ type machine struct {
 	msgat        int
 	backslashat  []int
 	bestEffort 	 bool
+  timeFormat string
 }
 
 // NewMachine creates a new FSM able to parse RFC5424 syslog messages.
 func NewMachine(options ...syslog.MachineOption) syslog.Machine {
-	m := &machine{}
+	m := &machine{
+    timeFormat: RFC3339MICRO,
+  }
 
 	for _, opt := range options {
 		opt(m)
@@ -332,6 +335,12 @@ func NewMachine(options ...syslog.MachineOption) syslog.Machine {
 
 func (m *machine) WithBestEffort() {
 	m.bestEffort = true
+}
+
+// WithTimeFormat configures an alternative time format.
+// Default: RFC3339MICRO
+func (m *machine) WithTimeFormat(timeFmt string) {
+  m.timeFormat = timeFmt
 }
 
 // HasBestEffort tells whether the receiving machine has best effort mode on or off.
